@@ -1,0 +1,125 @@
+#!/bin/bash
+# PREP
+echo -n "[danpi: ] Setup script initialized "
+scriptdir="/home/pi/scripts" # main script directory
+sudo mkdir -p $scriptdir # create directory if it doesn't exist
+sudo chown pi:pi $scriptdir && sudo chmod 750 $scriptdir # change permissions
+# STEP 1
+if [ ! -f $scriptdir/step1 ] ; then # if the step 1 file doesn't exist, then step 1 has not been completed
+	echo "| Step 1: Incomplete | Starting Step 1..."
+	echo -n "[danpi:setup] Updating system files..."
+	sudo apt-get update >/dev/null 2>&1
+	echo "done"
+	echo -n "[danpi:setup] Upgrading system files..."
+	sudo apt-get upgrade -y >/dev/null 2>&1
+	echo "done"
+	echo -n "[danpi:setup] Importing scripts..."
+	git clone https://www.github.com/dwassall/myscripts.git $scriptdir/bin/ >/dev/null 2>&1
+	sudo bash -c 'echo "export PATH="/home/pi/scripts/bin:$PATH"" >> /home/pi/.bashrc'
+	source /home/pi/.bashrc
+	echo "done"
+	echo -n "[danpi:vnc] Installing VNC server..."
+	sudo apt-get --yes --force-yes install realvnc-vnc-server realvnc-vnc-viewer >/dev/null 2>&1
+	echo "done"
+	echo -n "[danpi:startup] Creating mount point directories..."
+	sudo mkdir -p /media/server
+	sudo mkdir -p /var/www/html/data
+	echo "done"
+	echo "[danpi:startup] Running startup script..."
+	startup
+	echo "[danpi:plex] Starting Plex Media Server install..."
+	echo -n "[danpi:plex] Installing HTTPS transport package..."
+	sudo apt-get --yes --force-yes install apt-transport-https
+	echo "done"
+	echo "[danpi:plex] Obtaining crypt O key..."
+	wget -O - https://dev2day.de/pms/dev2day-pms.gpg.key | sudo apt-key add -
+	echo "[danpi:plex] Adding dev2day repository to package source list..."
+	echo "deb https://dev2day.de/pms/ jessie main" | sudo tee /etc/apt/sources.list.d/pms.list
+	echo -n "[danpi:plex] Updating system files..."
+	sudo apt-get update >/dev/null 2>&1
+	echo "done"
+	echo -n "[danpi:plex] Installing Plex Media Server..."
+	sudo apt-get --yes --force-yes install -t jessie plexmediaserver
+	echo "done"
+	echo "[danpi:plex] Changing Plex Server permissions..."
+	sudo sed -i 's/USER=plex/USER=pi/g' /etc/default/plexmediaserver.prev
+	echo -n "[danpi:plex] Restarting Plex Media Server..."
+	sudo service plexmediaserver restart >/dev/null 2>&1
+	echo "done"
+	echo -n "[danpi:plex] Analyzing IP address..."
+	myip=$(hostname -I | awk '{print $1}')
+	echo "done | IP address is $myip"
+	echo -n "[danpi:plex] Adding IP address as static IP..."
+	sudo bash -c 'echo "ip=$myip" >> /boot/cmdline.txt'
+	echo "done"
+	echo "[danpi:plex] DanPi will restart now | Run this script again once it reboots"
+	sleep 5
+	touch $scriptdir/step1
+	sudo reboot now
+else
+	echo -n "| Step 1: Complete "
+fi
+if [ ! -f $scriptdir/step2 ] ; then
+	echo "| Step 2: Incomplete | Starting Step 2..."
+	echo "[danpi:plex] Running startup script..."
+	startup
+	myip=$(hostname -I | awk '{print $1}')
+	echo "Plex has been installed | Go to $myip:32400/web to add content"
+	sleep 2
+	echo -n "[danpi:web-server] Installing Apache server..."
+	sudo apt-get --yes --force-yes install apache2 apache2-utils
+	echo "done"
+	echo -n "[danpi:web-server] Installing PHP..."
+	sudo apt-get --yes --force-yes install libapache2-mod-php5 php5 php-pear php5-xcache php5-mysql php5-curl php5-gd
+	echo "done"
+	echo -n "[danpi:web-server] Downloading Evoluted script..."
+	wget https://www.evoluted.net/thinktank/wp-content/uploads/2016/08/evoluted-directory-listing-script-4.0.5.zip >/dev/null 2>&1
+	echo "done"
+	echo -n "[danpi:web-server] Unzipping Evoluted script file..."
+	unzip evoluted-directory-listing-script-4.0.5.zip >/dev/null 2>&1
+	echo "done"
+	echo -n "[danpi:web-server] Moving index file..."
+	sudo mv /var/www/html/index.html /var/www/html/index.old.html
+	sudo mv Evoluted-Directory-Listing-Script/index.php /var/www/html/
+	sudo chown www-data:www-data /var/www/html/index.php && chmod 750 /var/www/html/index.php
+	sudo rm -r Evoluted* evoluted*
+	echo "done"
+	echo -n "[danpi:web-server] Restarting Apache server..."
+	sudo service apache2 restart >/dev/null 2>&1
+	echo "done"
+	echo -n "[danpi:extras] Installing aria2c..."
+	sudo apt-get --yes --force-yes install aria2 >/dev/null 2>&1
+	echo "done"
+	echo -n "[danpi:extras] Installing youtube-dl..."
+	sudo wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl >/dev/null 2>&1
+	sudo chmod a+rx /usr/local/bin/youtube-dl
+	echo "done"
+	echo -n "[danpi:extras] Installing beets..."
+	sudo apt-get --yes --force-yes install beets >/dev/null 2>&1
+	sudo bash -c 'echo "directory: /media/server/music" >> /home/pi/.config/beets/config.yaml'
+	sudo bash -c 'echo "library: /media/server/music/musiclibrary.blb" >> /home/pi/.config/beets/config.yaml'
+	sudo bash -c 'echo "match:" >> /home/pi/.config/beets/config.yaml'
+	sudo bash -c 'echo "    strong_rec_thresh: 0.55" >> /home/pi/.config/beets/config.yaml'
+	sudo bash -c 'echo "paths:" >> /home/pi/.config/beets/config.yaml'
+	sudo bash -c 'echo "    default: $track\$title" >> /home/pi/.config/beets/config.yaml'
+	sudo bash -c 'echo "plugins: lastgenre" >> /home/pi/.config/beets/config.yaml'
+	sudo bash -c 'echo "lastgenre:" >> /home/pi/.config/beets/config.yaml'
+	sudo bash -c 'echo "    auto: yes" >> /home/pi/.config/beets/config.yaml'
+	sudo bash -c 'echo "    count: 1" >> /home/pi/.config/beets/config.yaml'
+	sudo bash -c 'echo "    source: artist" >> /home/pi/.config/beets/config.yaml'
+	echo "done"
+	echo "[danpi:extras] Installing sendmail..."
+	sudo apt-get --yes --force-yes install sendmail >/dev/null 2>&1
+	echo -n "Enter password for danflixr@gmail.com: "
+	read emailpwd
+	sudo bash -c 'echo "AuthUser=danflixr@gmail.com" >> /etc/ssmtp/ssmtp.conf'
+	sudo bash -c 'echo "AuthPass=$emailpwd" >> /etc/ssmtp/ssmtp.conf'
+	echo -n "[danpi:extras] Adding danflixr to CronTab..."
+	sudo bash -c 'echo "0 2 * * * dailydanflixr >/dev/null 2>&1" >> /var/spool/cron/crontabs/pi'
+	echo "done"
+	echo -n "[danpi:extras] Creating script directories..."
+	sudo cp /var/www/html/data/data/dwassall/files/setup/* /home/pi/scripts/
+	echo "done"
+else
+	echo "Step 2 Complete"
+fi
