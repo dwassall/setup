@@ -120,6 +120,7 @@ if [ ! -f $scriptdir/step2 ] ; then
 	echo -n "[danpi:extras] Creating script directories..."
 	sudo cp /var/www/html/data/data/dwassall/files/setup/* /home/pi/scripts/
 	echo "done"
+	touch $scriptdir/step2
 else
-	echo "Step 2 Complete"
+	echo "| Step 2: Complete"
 fi
