@@ -7,6 +7,8 @@ sudo chown pi:pi $scriptdir && sudo chmod 750 $scriptdir # change permissions
 # STEP 1
 if [ ! -f $scriptdir/step1 ] ; then # if the step 1 file doesn't exist, then step 1 has not been completed
 	echo "| Step 1: Incomplete | Starting Step 1..."
+	echo "[danpi:setup] Triggering password change..."
+	passwd
 	echo -n "[danpi:setup] Updating system files..."
 	sudo apt-get update >/dev/null 2>&1
 	echo "done"
