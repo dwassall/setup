@@ -72,7 +72,7 @@ if [ ! -f $scriptdir/step2 ] ; then
 	sudo apt-get --yes --force-yes install apache2 apache2-utils
 	echo "done"
 	echo -n "[danpi:web-server] Installing PHP..."
-	sudo apt-get --yes --force-yes install libapache2-mod-php5 php5 php-pear php5-xcache php5-mysql php5-curl php5-gd
+	sudo apt-get --yes --force-yes install libapache2-mod-php5 php-pear php php-mysql php-curl php-gd
 	echo "done"
 	echo -n "[danpi:web-server] Downloading Evoluted script..."
 	wget https://www.evoluted.net/thinktank/wp-content/uploads/2016/08/evoluted-directory-listing-script-4.0.5.zip >/dev/null 2>&1
